@@ -1,0 +1,65 @@
+name: grokbotremote
+
+# GrokBotRemote runner — portable compose stack.
+#
+# Publish on a host you control. Default bind is loopback so the API is not
+# exposed on every interface by accident:
+#   ${RUNNER_HOST:-127.0.0.1}:${RUNNER_PORT:-8787}:8080
+# Container stays 8080 internally. Do not publish on a host port already used
+# by another service; avoid host 8080 when something else owns it.
+# Prefer host port 8787. Reachability for other machines: set RUNNER_HOST to a
+# private/tailnet address, or use SSH tunnel / VPN — never a house public IP.
+# Never run this on Agent86 app servers.
+# Relocate = copy this file + runner.env to any later Docker host.
+#
+# Compose interpolates RUNNER_HOST / RUNNER_PORT from the shell or compose/.env
+# (not from the container env_file). See runner.env.example.
+
+services:
+  runner:
+    build:
+      context: ../runner
+      dockerfile: Dockerfile
+    image: grokbotremote-runner:dev
+    env_file:
+      - runner.env
+    environment:
+      RUNNER_ENV: ${RUNNER_ENV:-dev}
+      JOBS_DIR: /jobs
+      ARTIFACTS_DIR: /artifacts
+      REPO_DIR: /repo
+      PORT: "8080"
+    ports:
+      - "${RUNNER_HOST:-127.0.0.1}:${RUNNER_PORT:-8787}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../jobs:/jobs:ro
+      - ../:/repo:ro
+      - runner-artifacts:/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/status')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Built on deploy so the Agent86 QA sample can `docker run grokbotremote-agent86-qa-dev:dev`.
+  # Profile keeps it from starting as a long-running container.
+  agent86-qa-dev-image:
+    image: grokbotremote-agent86-qa-dev:dev
+    build:
+      context: ../jobs/examples/agent86-qa-dev
+      dockerfile: Dockerfile
+    profiles: ["qa-image"]
+    restart: "no"
+    command: ["true"]
+
+volumes:
+  runner-artifacts:

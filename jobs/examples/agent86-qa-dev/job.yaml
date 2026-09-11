@@ -1,0 +1,21 @@
+# Job 1 — Agent86 DEV UI suite (UI_TEST_SPEC.md v0.8.24 on agent86homeBot dev).
+# Target: https://dev.agent86portal.com ONLY. Do not open test or prod.
+# Secrets: names only. Values live in runner.env / host env, never git.
+id: agent86-qa-dev
+image: grokbotremote-agent86-qa-dev:dev
+command:
+  - python
+  - /job/run_suite.py
+timeout: 5400
+secrets:
+  - QA_USER
+  - QA_PASSWORD
+  - QA_USER_ALT
+  - QA_PASSWORD_ALT
+inputs:
+  BASE_URL: https://dev.agent86portal.com
+  SPEC_VERSION: "0.8.24"
+result: /out/result.json
+callback: webhook
+cpu: "2"
+memory: 2g

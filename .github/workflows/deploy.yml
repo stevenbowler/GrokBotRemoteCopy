@@ -1,0 +1,64 @@
+name: deploy
+
+# Push to `dev` only (and workflow_dispatch). Do not deploy main from this file.
+# deploy-dev MUST run on label example-runner. Do not reuse labels from other projects.
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r runner/requirements.txt pytest httpx
+      - name: Test
+        env:
+          PYTHONPATH: runner
+          LOCAL_DEV: "0"
+        run: pytest -q
+
+  deploy-dev:
+    needs: pytest
+    if: github.ref == 'refs/heads/dev'
+    runs-on: [self-hosted, example-runner]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore host runner.env (secrets never in git)
+        run: |
+          set -euo pipefail
+          if [ -f compose/runner.env ]; then
+            echo "compose/runner.env already present in checkout"
+          elif [ -f "${HOME}/.grokbotremote/runner.env" ]; then
+            cp "${HOME}/.grokbotremote/runner.env" compose/runner.env
+            chmod 600 compose/runner.env
+          else
+            echo "Missing compose/runner.env and ${HOME}/.grokbotremote/runner.env" >&2
+            echo "On the Docker host: cp compose/runner.env.example compose/runner.env and fill names from runner.env.example." >&2
+            exit 1
+          fi
+          if [ ! -f compose/.env ]; then
+            if [ -f "${HOME}/.grokbotremote/compose.env" ]; then
+              cp "${HOME}/.grokbotremote/compose.env" compose/.env
+            else
+              printf '%s\n' 'RUNNER_HOST=127.0.0.1' 'RUNNER_PORT=8787' > compose/.env
+            fi
+          fi
+      - name: Build sample QA image (jobs/examples/agent86-qa-dev) and start runner (no compose down)
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          # GrokBotRemote compose only. Do not reuse compose stacks from other projects.
+          # Do not docker compose down — that would stop the daemon/stack.
+          docker compose -p grokbotremote -f compose/docker-compose.yml --profile qa-image build
+          docker compose -p grokbotremote -f compose/docker-compose.yml up -d --build
+          docker compose -p grokbotremote -f compose/docker-compose.yml ps

@@ -1,0 +1,12 @@
+# Job 0 — prove the pipe. No secrets, no Agent86, no mail, no Grok API.
+id: smoke
+image: alpine:3.20
+command:
+  - /bin/sh
+  - -c
+  - "echo hostname=$(hostname); echo time=$(date -u +%Y-%m-%dT%H:%M:%SZ); echo git_sha=${GIT_SHA}"
+timeout: 60
+secrets: []
+callback: webhook
+cpu: "0.25"
+memory: 64m

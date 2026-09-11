@@ -1,0 +1,11 @@
+# Test-only. Sleeps past timeout so R-TIME-01 can assert kill + status=timeout.
+# Not a production job.
+id: timeout-stub
+image: alpine:3.20
+command: ["sleep", "60"]
+timeout: 5
+secrets: []
+callback: webhook
+test_only: true
+cpu: "0.25"
+memory: 32m

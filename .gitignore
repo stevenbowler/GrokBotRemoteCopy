@@ -1,0 +1,25 @@
+# secrets and local env
+.env
+.env.*
+!.env.example
+!compose/.env.example
+runner.env
+compose/runner.env
+
+# keys
+*.pem
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# runner artifacts (on-disk v1)
+artifacts/
+compose/artifacts/
+
+.DS_Store
